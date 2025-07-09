@@ -23,6 +23,7 @@ func main() {
 		Addr:    ":8080",
 	}
 
+	fmt.Printf("Server is listening to incomming requests...\n")
 	if err := server.ListenAndServe(); err != nil {
 		fmt.Printf("%v", err)
 		os.Exit(1)
