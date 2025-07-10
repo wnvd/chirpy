@@ -30,31 +30,16 @@ func main() {
 	mux.Handle("/app/", cfg.middlewareMetricHits(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
 
 	// metrics
-	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Values("Content-Type: text/plain; charset=utf-8;")
-		w.WriteHeader(http.StatusOK)
-		hitCount := cfg.fileserverHits.Load()
-		response := fmt.Sprintf("Hits: %v", hitCount)
-		w.Write([]byte(response))
-	})
+	mux.HandleFunc("GET /metrics", cfg.showMetricsHandler)
 
 	// reset metrics
-	mux.HandleFunc("/reset", func(w http.ResponseWriter, r *http.Request) {
-		cfg.resetMetrics()
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8;")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Metrics have been reset!"))
-	})
+	mux.HandleFunc("POST /reset", cfg.resetMetricHandler)
 
 	// server logo
 	mux.Handle("/app/assets/logo.png", http.StripPrefix("/app", http.FileServer(http.Dir("."))))
 
 	// health check
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8;")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	})
+	mux.HandleFunc("GET /healthz", checkHealthHandler)
 
 	server := &http.Server{
 		Handler: mux,
@@ -67,4 +52,34 @@ func main() {
 		os.Exit(1)
 	}
 
+}
+
+// path: /metrics
+func (cfg *apiConfig) showMetricsHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	hitCount := cfg.fileserverHits.Load()
+	response := fmt.Sprintf("Hits: %v", hitCount)
+	w.Header().Values("Content-Type: text/plain; charset=utf-8;")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(response))
+}
+
+// path: /reset
+func (cfg *apiConfig) resetMetricHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	cfg.resetMetrics()
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8;")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Metrics have been reset!"))
+}
+
+// path: /checkhealth
+func checkHealthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8;")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }
