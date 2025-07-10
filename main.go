@@ -9,11 +9,15 @@ import (
 func main() {
 	mux := http.NewServeMux()
 
+	// home page
 	mux.Handle("/app/", http.StripPrefix("/app", http.FileServer(http.Dir("."))))
+
+	// serve logo
 	mux.Handle("/app/assets/logo.png", http.StripPrefix("/app", http.FileServer(http.Dir("."))))
+
+	// health chec
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Values("Content-Type: text/plain; charset=utf-8")
-		w.Header().Add("charset", "utf-8")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
