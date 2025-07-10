@@ -30,16 +30,16 @@ func main() {
 	mux.Handle("/app/", cfg.middlewareMetricHits(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
 
 	// metrics
-	mux.HandleFunc("GET /metrics", cfg.showMetricsHandler)
+	mux.HandleFunc("GET /api/metrics", cfg.showMetricsHandler)
 
 	// reset metrics
-	mux.HandleFunc("POST /reset", cfg.resetMetricHandler)
+	mux.HandleFunc("POST /api/reset", cfg.resetMetricHandler)
 
 	// server logo
 	mux.Handle("/app/assets/logo.png", http.StripPrefix("/app", http.FileServer(http.Dir("."))))
 
 	// health check
-	mux.HandleFunc("GET /healthz", checkHealthHandler)
+	mux.HandleFunc("GET /api/healthz", checkHealthHandler)
 
 	server := &http.Server{
 		Handler: mux,
