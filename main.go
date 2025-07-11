@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"sync/atomic"
@@ -40,6 +42,9 @@ func main() {
 
 	// health check
 	mux.HandleFunc("GET /api/healthz", checkHealthHandler)
+
+	// validate json
+	mux.HandleFunc("POST /api/validate_chirp", validateChirpHandler)
 
 	server := &http.Server{
 		Handler: mux,
@@ -87,4 +92,78 @@ func checkHealthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8;")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
+}
+
+const (
+	maxMsgLength = 140
+)
+
+// path: POST /api/validate_chip
+func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
+	type reqObject struct {
+		Body string `json:"body"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	req := &reqObject{}
+
+	if err := decoder.Decode(req); err != nil {
+		log.Printf("Failed to decode request body")
+		errResponseHandle(ServerError, w, r)
+		return
+	}
+
+	if len(req.Body) > maxMsgLength {
+		errResponseHandle(Rejected, w, r)
+		return
+	}
+
+	respBody := struct {
+		Valid bool `json:"valid"`
+	}{
+		Valid: true,
+	}
+	response, err := json.Marshal(respBody)
+	if err != nil {
+		log.Printf("Failed to marshal response body")
+		errResponseHandle(ServerError, w, r)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(response))
+}
+
+// Reponse Types for Error
+
+type ResponseError int
+
+const (
+	ServerError ResponseError = iota
+	Rejected
+)
+
+// helper function to send error response
+func errResponseHandle(respType ResponseError, w http.ResponseWriter, r *http.Request) {
+	type errorResponse struct {
+		Value string `json:"value"`
+	}
+	errResp := errorResponse{}
+	if respType == ServerError {
+		w.WriteHeader(http.StatusInternalServerError)
+		errResp.Value = "Something went wrong"
+	}
+	if respType == Rejected {
+		w.WriteHeader(http.StatusBadRequest)
+		errResp.Value = "Chirp is too long"
+	}
+
+	response, err := json.Marshal(errResp)
+	if err != nil {
+		log.Printf("Failed to marshal json error response!")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+		return
+	}
+
+	w.Write([]byte(response))
 }
