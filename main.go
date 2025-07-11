@@ -109,12 +109,12 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := decoder.Decode(req); err != nil {
 		log.Printf("Failed to decode request body")
-		errResponseHandle(ServerError, w, r)
+		errResponseHandle(ServerError, "Something went wrong", w, r)
 		return
 	}
 
 	if len(req.Body) > maxMsgLength {
-		errResponseHandle(Rejected, w, r)
+		errResponseHandle(Rejected, "Chirp too long", w, r)
 		return
 	}
 
@@ -126,7 +126,7 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 	response, err := json.Marshal(respBody)
 	if err != nil {
 		log.Printf("Failed to marshal response body")
-		errResponseHandle(ServerError, w, r)
+		errResponseHandle(ServerError, "Something went wrong", w, r)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -143,19 +143,18 @@ const (
 )
 
 // helper function to send error response
-func errResponseHandle(respType ResponseError, w http.ResponseWriter, r *http.Request) {
+func errResponseHandle(respType ResponseError, respMsg string, w http.ResponseWriter, r *http.Request) {
 	type errorResponse struct {
 		Value string `json:"value"`
 	}
 	errResp := errorResponse{}
 	if respType == ServerError {
 		w.WriteHeader(http.StatusInternalServerError)
-		errResp.Value = "Something went wrong"
 	}
 	if respType == Rejected {
 		w.WriteHeader(http.StatusBadRequest)
-		errResp.Value = "Chirp is too long"
 	}
+	errResp.Value = respMsg
 
 	response, err := json.Marshal(errResp)
 	if err != nil {
