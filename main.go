@@ -27,13 +27,13 @@ func main() {
 	cfg := apiConfig{}
 
 	// home page
-	mux.Handle("/app/", cfg.middlewareMetricHits(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
+	mux.Handle("/app", cfg.middlewareMetricHits(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
 
 	// metrics
-	mux.HandleFunc("GET /api/metrics", cfg.showMetricsHandler)
+	mux.HandleFunc("GET /admin/metrics", cfg.showMetricsHandler)
 
 	// reset metrics
-	mux.HandleFunc("POST /api/reset", cfg.resetMetricHandler)
+	mux.HandleFunc("POST /admin/reset", cfg.resetMetricHandler)
 
 	// server logo
 	mux.Handle("/app/assets/logo.png", http.StripPrefix("/app", http.FileServer(http.Dir("."))))
@@ -60,8 +60,13 @@ func (cfg *apiConfig) showMetricsHandler(
 	r *http.Request,
 ) {
 	hitCount := cfg.fileserverHits.Load()
-	response := fmt.Sprintf("Hits: %v", hitCount)
-	w.Header().Values("Content-Type: text/plain; charset=utf-8;")
+	response := fmt.Sprintf(`<html>
+	<body>
+		<h1>Welcome, Chirpy Admin</h1>
+		<p>Chirpy has been visited %d times!</p>
+	</body>
+</html>`, hitCount)
+	w.Header().Values("Content-Type: text/html; charset=utf-8;")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(response))
 }
