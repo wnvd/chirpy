@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync/atomic"
 )
 
@@ -118,10 +119,12 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// running through profanity filter
+
 	respBody := struct {
-		Valid bool `json:"valid"`
+		CleanedBody string `json:"cleaned_body"`
 	}{
-		Valid: true,
+		CleanedBody: replaceProfane(req.Body),
 	}
 	response, err := json.Marshal(respBody)
 	if err != nil {
@@ -142,6 +145,8 @@ const (
 	Rejected
 )
 
+// TODO: you probably need to split it into
+// error response and json response
 // helper function to send error response
 func errResponseHandle(respType ResponseError, respMsg string, w http.ResponseWriter, r *http.Request) {
 	type errorResponse struct {
@@ -165,4 +170,29 @@ func errResponseHandle(respType ResponseError, respMsg string, w http.ResponseWr
 	}
 
 	w.Write([]byte(response))
+}
+
+// helper function to replace profane
+func replaceProfane(body string) string {
+	wordFilter := map[string]bool{
+		"kerfuffle": true,
+		"sharbert":  true,
+		"fornax":    true,
+	}
+
+	filtered_words := make([]string, 0)
+	for word := range strings.SplitSeq(body, " ") {
+		// converting word to lower case for lookup
+		// and only using the original word casing
+		wordLowerCase := strings.ToLower(word)
+		if _, exist := wordFilter[wordLowerCase]; exist {
+			filtered_words = append(filtered_words, "****")
+			continue
+		}
+		filtered_words = append(filtered_words, word)
+	}
+
+	new_body := strings.Join(filtered_words, " ")
+
+	return new_body
 }
