@@ -69,7 +69,7 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", checkHealthHandler)
 
 	// validate json
-	mux.HandleFunc("POST /api/validate_chirp", validateChirpHandler)
+	mux.HandleFunc("POST /api/chirps", cfg.chirpHandler)
 
 	// create user
 	mux.HandleFunc("POST /api/users", cfg.createUserHandler)
@@ -134,10 +134,11 @@ const (
 	maxMsgLength = 140
 )
 
-// path: POST /api/validate_chip
-func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
+// path: POST /api/chirp
+func (cfg *apiConfig) chirpHandler(w http.ResponseWriter, r *http.Request) {
 	type reqObject struct {
-		Body string `json:"body"`
+		Body   string `json:"body"`
+		UserID string `json:"user_id"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -154,20 +155,59 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// running through profanity filter
-
-	respBody := struct {
-		CleanedBody string `json:"cleaned_body"`
-	}{
-		CleanedBody: replaceProfane(req.Body),
-	}
-	response, err := json.Marshal(respBody)
+	userUUID, err := uuid.Parse(req.UserID)
 	if err != nil {
-		log.Printf("Failed to marshal response body")
+		log.Printf("Failed to parse uuid %v", err)
 		errResponseHandle(ServerError, "Something went wrong", w, r)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+
+	// check if user with request uuid exist
+	_, err = cfg.database.GetUserById(r.Context(), userUUID)
+	if err != nil {
+		log.Printf("Failed to user by ID %v", err)
+		errResponseHandle(ServerError, "Something went wrong", w, r)
+		return
+	}
+
+	// running through profanity filter
+	cleaned_body := replaceProfane(req.Body)
+	chirpParams := database.CreateChirpParams{
+		ID:     uuid.New(),
+		Body:   cleaned_body,
+		UserID: userUUID,
+	}
+
+	createdChirp, err := cfg.database.CreateChirp(r.Context(), chirpParams)
+	if err != nil {
+		log.Printf("Failed to create chirp %v", err)
+		errResponseHandle(ServerError, "Something went wrong", w, r)
+		return
+	}
+
+	type Chirp struct {
+		Id        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Body      string    `json:"body"`
+		UserId    uuid.UUID `json:"user_id"`
+	}
+
+	chirp := Chirp{
+		Id:        createdChirp.ID,
+		CreatedAt: createdChirp.CreatedAt,
+		UpdatedAt: createdChirp.UpdatedAt,
+		Body:      createdChirp.Body,
+		UserId:    createdChirp.UserID,
+	}
+
+	response, err := json.Marshal(chirp)
+	if err != nil {
+		log.Printf("Failed to marshal response body %v", err)
+		errResponseHandle(ServerError, "Something went wrong", w, r)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(response))
 }
 
