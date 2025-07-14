@@ -9,7 +9,9 @@ import (
 	"os"
 	"strings"
 	"sync/atomic"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/wnvd/chirpy/internal/database"
@@ -35,17 +37,21 @@ func main() {
 	// loading env vars
 	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
-	db, err := sql.Open("postgres", dbURL)
+	dbConn, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Printf("unable to connect to DB: %v")
 	}
-	dbQueries := database.New(db)
+	dbQueries := database.New(dbConn)
 
 	mux := http.NewServeMux()
 	cfg := apiConfig{
 		fileserverHits: atomic.Int32{},
 		database:       dbQueries,
 	}
+
+	// -------------------------------------------------
+	// ------------------ End Points -------------------
+	// -------------------------------------------------
 
 	// home page
 	mux.Handle("/app", cfg.middlewareMetricHits(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
@@ -64,6 +70,9 @@ func main() {
 
 	// validate json
 	mux.HandleFunc("POST /api/validate_chirp", validateChirpHandler)
+
+	// create user
+	mux.HandleFunc("POST /api/users", cfg.createUserHandler)
 
 	server := &http.Server{
 		Handler: mux,
@@ -100,7 +109,15 @@ func (cfg *apiConfig) resetMetricHandler(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
+	if os.Getenv("PLATFROM") == "dev" {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte(http.StatusText(http.StatusForbidden)))
+		return
+	}
+
 	cfg.resetMetrics()
+	// delete all users from the database
+	cfg.database.DeleteAllUsers(r.Context())
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8;")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Metrics have been reset!"))
@@ -213,4 +230,64 @@ func replaceProfane(body string) string {
 	new_body := strings.Join(filtered_words, " ")
 
 	return new_body
+}
+
+type User struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
+}
+
+func (cfg *apiConfig) createUserHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	type reqObject struct {
+		Email string `json:"email"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	req := &reqObject{}
+	if err := decoder.Decode(req); err != nil {
+		log.Printf("Failed to decode request body")
+		errResponseHandle(ServerError, "Something went wrong", w, r)
+		return
+	}
+
+	if !strings.Contains(req.Email, "@") {
+		log.Printf("Invalid Email")
+		errResponseHandle(ServerError, "Something went wrong", w, r)
+		return
+	}
+
+	userParams := database.CreateUserParams{
+		ID:    uuid.New(),
+		Email: req.Email,
+	}
+
+	user, err := cfg.database.CreateUser(r.Context(), userParams)
+	if err != nil {
+		log.Printf("Failed to create User %v", err)
+		errResponseHandle(ServerError, "Something went wrong", w, r)
+		return
+	}
+
+	responseBody := User{
+		ID:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
+	}
+
+	response, err := json.Marshal(responseBody)
+	if err != nil {
+		log.Printf("Failed to decode request body")
+		errResponseHandle(ServerError, "Something went wrong", w, r)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte(response))
 }
