@@ -74,6 +74,8 @@ func main() {
 	// create user
 	mux.HandleFunc("POST /api/users", cfg.createUserHandler)
 
+	// get all chirps
+	mux.HandleFunc("GET /api/chirps", cfg.getChirpsHandler)
 
 	server := &http.Server{
 		Handler: mux,
@@ -135,6 +137,14 @@ const (
 	maxMsgLength = 140
 )
 
+type Chirp struct {
+	Id        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Body      string    `json:"body"`
+	UserId    uuid.UUID `json:"user_id"`
+}
+
 // path: POST /api/chirp
 func (cfg *apiConfig) chirpHandler(w http.ResponseWriter, r *http.Request) {
 	type reqObject struct {
@@ -184,14 +194,6 @@ func (cfg *apiConfig) chirpHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to create chirp %v", err)
 		errResponseHandle(ServerError, "Something went wrong", w, r)
 		return
-	}
-
-	type Chirp struct {
-		Id        uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Body      string    `json:"body"`
-		UserId    uuid.UUID `json:"user_id"`
 	}
 
 	chirp := Chirp{
@@ -331,4 +333,42 @@ func (cfg *apiConfig) createUserHandler(
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(response))
+}
+
+// Gets all chips from the database
+// by defualt in ascending order
+func (c *apiConfig) getChirpsHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+
+	chirps, err := c.database.GetAllChirps(r.Context())
+	if err != nil {
+		log.Printf("Failed to all the chirps from the database")
+		errResponseHandle(ServerError, "Something went wrong", w, r)
+		return
+	}
+
+	respChirp := make([]Chirp, len(chirps))
+
+	for i, chirp := range chirps {
+		respChirp[i] = Chirp{
+			Id:        chirp.ID,
+			CreatedAt: chirp.CreatedAt,
+			UpdatedAt: chirp.UpdatedAt,
+			Body:      chirp.Body,
+			UserId:    chirp.UserID,
+		}
+	}
+
+	data, err := json.Marshal(respChirp)
+	if err != nil {
+		log.Printf("Failed to all the chirps from the database")
+		errResponseHandle(ServerError, "Something went wrong", w, r)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
 }
