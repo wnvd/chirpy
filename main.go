@@ -68,11 +68,12 @@ func main() {
 	// health check
 	mux.HandleFunc("GET /api/healthz", checkHealthHandler)
 
-	// validate json
+	// create a chirp
 	mux.HandleFunc("POST /api/chirps", cfg.chirpHandler)
 
 	// create user
 	mux.HandleFunc("POST /api/users", cfg.createUserHandler)
+
 
 	server := &http.Server{
 		Handler: mux,
