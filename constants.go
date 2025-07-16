@@ -12,4 +12,5 @@ type ResponseError int
 const (
 	ServerError ResponseError = iota
 	Rejected
+	NotFound
 )

@@ -70,6 +70,9 @@ func main() {
 	// get all chirps
 	mux.HandleFunc("GET /api/chirps", cfg.getChirpsHandler)
 
+	// get a chirp by Id
+	mux.HandleFunc("GET /api/chirps/{chirpId}", cfg.getChirpsByIdHandler)
+
 	// create user
 	mux.HandleFunc("POST /api/users", cfg.createUserHandler)
 

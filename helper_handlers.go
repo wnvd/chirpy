@@ -13,14 +13,18 @@ func errResponseHandle(respType ResponseError, respMsg string, w http.ResponseWr
 	type errorResponse struct {
 		Value string `json:"value"`
 	}
-	errResp := errorResponse{}
 	if respType == ServerError {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	if respType == Rejected {
 		w.WriteHeader(http.StatusBadRequest)
 	}
-	errResp.Value = respMsg
+	if respType == NotFound {
+		w.WriteHeader(http.StatusNotFound)
+	}
+	errResp := errorResponse{
+		Value: respMsg,
+	}
 
 	response, err := json.Marshal(errResp)
 	if err != nil {

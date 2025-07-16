@@ -11,7 +11,6 @@ import (
 	"github.com/wnvd/chirpy/internal/database"
 )
 
-
 type Chirp struct {
 	Id        uuid.UUID `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -130,4 +129,49 @@ func (c *apiConfig) getChirpsHandler(
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(data)
+}
+
+/*
+* Gets all chips from the database
+* by defualt in ascending order
+*
+* path : GET /api/chirps/{id}
+*
+ */
+func (cfg *apiConfig) getChirpsByIdHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+
+	chirpId, err := uuid.Parse(r.PathValue("chirpId"))
+	if err != nil {
+		log.Printf("Unable to parse uuid: %v", err)
+		errResponseHandle(ServerError, "Server Error", w, r)
+		return
+	}
+
+	chirp, err := cfg.database.GetChirpById(r.Context(), chirpId)
+	if err != nil {
+		log.Printf("Unable to get chirp data by Id: %v", err)
+		errResponseHandle(NotFound, "Invalid chirp id", w, r)
+		return
+	}
+
+	response, err := json.Marshal(
+		Chirp{
+			Id:        chirp.ID,
+			CreatedAt: chirp.CreatedAt,
+			UpdatedAt: chirp.UpdatedAt,
+			Body:      chirp.Body,
+			UserId:    chirp.UserID,
+		})
+
+	if err != nil {
+		log.Printf("Failed to marshal response body %v", err)
+		errResponseHandle(ServerError, "Something went wrong", w, r)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(response))
 }
