@@ -22,6 +22,9 @@ func errResponseHandle(respType ResponseError, respMsg string, w http.ResponseWr
 	if respType == NotFound {
 		w.WriteHeader(http.StatusNotFound)
 	}
+	if respType == Unauthorized {
+		w.WriteHeader(http.StatusUnauthorized)
+	}
 	errResp := errorResponse{
 		Value: respMsg,
 	}

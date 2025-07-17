@@ -76,6 +76,9 @@ func main() {
 	// create user
 	mux.HandleFunc("POST /api/users", cfg.createUserHandler)
 
+	// user login
+	mux.HandleFunc("POST /api/login", cfg.userLoginHandler)
+
 	server := &http.Server{
 		Handler: mux,
 		Addr:    ":8080",

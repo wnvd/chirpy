@@ -13,4 +13,5 @@ const (
 	ServerError ResponseError = iota
 	Rejected
 	NotFound
+	Unauthorized
 )
