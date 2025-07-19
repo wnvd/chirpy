@@ -4,6 +4,7 @@ package main
 // for a chirp
 const (
 	maxMsgLength = 140
+	CHIRPY = "chirpy"
 )
 
 // Response Types for Error

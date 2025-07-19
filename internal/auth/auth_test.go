@@ -2,6 +2,9 @@ package auth
 
 import (
 	"testing"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestHashPassword(t *testing.T) {
@@ -22,4 +25,30 @@ func TestHashPassword(t *testing.T) {
 		return
 	}
 
+}
+
+func TestJWTToken(t *testing.T) {
+	userId := uuid.New()
+	tokenSecret := "this_is_a_secret"
+	expresIn := time.Hour * 2
+
+	token, err := MakeJWT(
+		userId,
+		tokenSecret,
+		expresIn,
+	)
+	if err != nil {
+		t.Errorf("unable to create a jwt token")
+		return
+	}
+
+	validatedId, err := ValidateJWT(token, tokenSecret)
+	if err != nil {
+		t.Errorf("unable to validate at token")
+		return
+	}
+	if userId != validatedId {
+		t.Errorf("generate Token != validated token")
+		return
+	}
 }
