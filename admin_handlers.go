@@ -29,8 +29,7 @@ func (cfg *apiConfig) resetMetricHandler(
 	r *http.Request,
 ) {
 	if os.Getenv("PLATFROM") == "dev" {
-		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte(http.StatusText(http.StatusForbidden)))
+		ErrorResponse(w, http.StatusForbidden, "Something went wrong")
 		return
 	}
 

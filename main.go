@@ -36,6 +36,7 @@ func main() {
 	dbConn, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Printf("unable to connect to DB: %v", err)
+		return
 	}
 	dbQueries := database.New(dbConn)
 
@@ -65,7 +66,7 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", checkHealthHandler)
 
 	// create a chirp
-	mux.HandleFunc("POST /api/chirps", cfg.chirpHandler)
+	mux.HandleFunc("POST /api/chirps", cfg.createChirpHandler)
 
 	// get all chirps
 	mux.HandleFunc("GET /api/chirps", cfg.getChirpsHandler)

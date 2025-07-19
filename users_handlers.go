@@ -34,26 +34,30 @@ func (cfg *apiConfig) createUserHandler(
 	req := &UserLogin{}
 	if err := decoder.Decode(req); err != nil {
 		log.Printf("Failed to decode request body")
-		errResponseHandle(ServerError, "Something went wrong", w, r)
+		// errResponseHandle(ServerError, "Something went wrong", w, r)
+		ErrorResponse(w, http.StatusInternalServerError, "Something went wrong")
 		return
 	}
 
 	if !strings.Contains(req.Email, "@") {
 		log.Printf("Invalid Email")
-		errResponseHandle(ServerError, "Something went wrong", w, r)
+		// errResponseHandle(ServerError, "Something went wrong", w, r)
+		ErrorResponse(w, http.StatusInternalServerError, "Something went wrong")
 		return
 	}
 
 	if len(req.Password) < 4 {
 		log.Printf("Invalid Password")
-		errResponseHandle(ServerError, "Something went wrong", w, r)
+		// errResponseHandle(ServerError, "Something went wrong", w, r)
+		ErrorResponse(w, http.StatusInternalServerError, "Something went wrong")
 		return
 	}
 
 	hashedPassword, err := auth.HashPassword(req.Password)
 	if err != nil {
 		log.Printf("Unable to hash password, %v", err)
-		errResponseHandle(ServerError, "Something went wrong", w, r)
+		// errResponseHandle(ServerError, "Something went wrong", w, r)
+		ErrorResponse(w, http.StatusInternalServerError, "Something went wrong")
 		return
 	}
 
@@ -66,7 +70,8 @@ func (cfg *apiConfig) createUserHandler(
 	user, err := cfg.database.CreateUser(r.Context(), userParams)
 	if err != nil {
 		log.Printf("Failed to create User %v", err)
-		errResponseHandle(ServerError, "Something went wrong", w, r)
+		// errResponseHandle(ServerError, "Something went wrong", w, r)
+		ErrorResponse(w, http.StatusInternalServerError, "Something went wrong")
 		return
 	}
 
@@ -77,16 +82,18 @@ func (cfg *apiConfig) createUserHandler(
 		Email:     user.Email,
 	}
 
-	response, err := json.Marshal(responseBody)
-	if err != nil {
-		log.Printf("Failed to decode request body")
-		errResponseHandle(ServerError, "Something went wrong", w, r)
-		return
-	}
+	// response, err := json.Marshal(responseBody)
+	// if err != nil {
+	// 	log.Printf("Failed to decode request body")
+	// 	// errResponseHandle(ServerError, "Something went wrong", w, r)
+	// 	ErrorResponse(w, http.StatusInternalServerError, "Something went wrong")
+	// 	return
+	// }
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(response))
+	// w.Header().Set("Content-Type", "application/json")
+	// w.WriteHeader(http.StatusCreated)
+	// w.Write([]byte(response))
+	JSONResponse(w, http.StatusCreated, responseBody)
 }
 
 func (cfg *apiConfig) userLoginHandler(
@@ -97,26 +104,29 @@ func (cfg *apiConfig) userLoginHandler(
 	req := &UserLogin{}
 	if err := decoder.Decode(req); err != nil {
 		log.Printf("Failed to decode request body")
-		errResponseHandle(ServerError, "Something went wrong", w, r)
+		// errResponseHandle(ServerError, "Something went wrong", w, r)
+		ErrorResponse(w, http.StatusInternalServerError, "Something went wrong")
 		return
 	}
 
 	if !strings.Contains(req.Email, "@") {
 		log.Printf("Invalid Email")
-		errResponseHandle(Rejected, "Not a valid email", w, r)
+		// errResponseHandle(ServerError, "Something went wrong", w, r)
+		ErrorResponse(w, http.StatusBadRequest, "Incorrect email or password")
 		return
 	}
 
 	if len(req.Password) < 4 {
 		log.Printf("Invalid Password")
-		errResponseHandle(Rejected, "Not a valid password", w, r)
+		// errResponseHandle(ServerError, "Something went wrong", w, r)
+		ErrorResponse(w, http.StatusBadRequest, "Incorrect email or password")
 		return
 	}
 
 	user, err := cfg.database.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
-		log.Printf("Unable to get user from the database by Id %v", err)
-		errResponseHandle(Unauthorized, "Incorrect email or password", w, r)
+		// errResponseHandle(ServerError, "Something went wrong", w, r)
+		ErrorResponse(w, http.StatusUnauthorized, "Incorrect email or password")
 		return
 	}
 
@@ -124,24 +134,31 @@ func (cfg *apiConfig) userLoginHandler(
 		req.Password,
 		user.HashedPassword,
 	); err != nil {
-		log.Printf("Unable to get user from the database by Id %v", err)
-		errResponseHandle(Unauthorized, "Incorrect email or password", w, r)
+		// errResponseHandle(ServerError, "Something went wrong", w, r)
+		ErrorResponse(w, http.StatusUnauthorized, "Incorrect email or password")
 		return
 	}
 
-	response, err := json.Marshal(User{
+	// response, err := json.Marshal(User{
+	// 	ID:        user.ID,
+	// 	CreatedAt: user.CreatedAt,
+	// 	UpdatedAt: user.UpdatedAt,
+	// 	Email:     user.Email,
+	// })
+	// if err != nil {
+	// 	log.Printf("Failed to decode request body")
+	// 	errResponseHandle(ServerError, "Something went wrong", w, r)
+	// 	return
+	// }
+	// w.WriteHeader(http.StatusOK)
+	// w.Write([]byte(response))
+
+	JSONResponse(w, http.StatusOK, User {
 		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
 	})
-	if err != nil {
-		log.Printf("Failed to decode request body")
-		errResponseHandle(ServerError, "Something went wrong", w, r)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(response))
 }
 
 // helper function to replace profanity

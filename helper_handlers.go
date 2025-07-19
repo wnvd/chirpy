@@ -39,3 +39,23 @@ func errResponseHandle(respType ResponseError, respMsg string, w http.ResponseWr
 
 	w.Write([]byte(response))
 }
+
+type ErrorMessage struct {
+	Value string `json:"value"`
+}
+
+func ErrorResponse(w http.ResponseWriter, header int, msg string) {
+	JSONResponse(w, header, ErrorMessage{Value: msg})
+}
+
+func JSONResponse(w http.ResponseWriter, header int, payload any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(header)
+	res, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("Unable to marshal error response %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Write([]byte(res))
+}
