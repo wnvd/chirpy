@@ -52,6 +52,11 @@ func MakeJWT(
 		},
 	)
 
+	// we need to convert to bytes because some keys require
+	// to be converted to "verification key type" is this case
+	// byte.
+	// refer: https://golang-jwt.github.io/jwt/usage/signing_methods/#signing-methods-and-key-types
+
 	signedToken, err := token.SignedString([]byte(tokenSecret))
 	if err != nil {
 		return "", err
