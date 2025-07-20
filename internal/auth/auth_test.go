@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -51,4 +53,20 @@ func TestJWTToken(t *testing.T) {
 		t.Errorf("generate Token != validated token")
 		return
 	}
+}
+
+func TestBearerToken(t *testing.T) {
+	bearerToken := "Bearer this_is_a_bearer_token"
+	headers := http.Header{}
+	headers.Add("Authorization", bearerToken)
+
+	token, err := GetBearerToken(headers)
+	if err != nil {
+		t.Errorf("Couldn't get bearer token %v", err)
+	}
+
+	if strings.Split(bearerToken, " ")[1] != token {
+		t.Errorf("Couldn't get bearer token")
+	}
+
 }

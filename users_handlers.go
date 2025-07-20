@@ -18,11 +18,13 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Token     string    `json:"token,omitempty"`
 }
 
 type UserLogin struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email            string `json:"email"`
+	Password         string `json:"password"`
+	ExpiresInSeconds *int   `json:"expires_in_seconds,omitempty"`
 }
 
 func (cfg *apiConfig) createUserHandler(
@@ -75,13 +77,6 @@ func (cfg *apiConfig) createUserHandler(
 		return
 	}
 
-	responseBody := User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-	}
-
 	// response, err := json.Marshal(responseBody)
 	// if err != nil {
 	// 	log.Printf("Failed to decode request body")
@@ -93,7 +88,12 @@ func (cfg *apiConfig) createUserHandler(
 	// w.Header().Set("Content-Type", "application/json")
 	// w.WriteHeader(http.StatusCreated)
 	// w.Write([]byte(response))
-	JSONResponse(w, http.StatusCreated, responseBody)
+	JSONResponse(w, http.StatusCreated, User{
+		ID:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
+	})
 }
 
 func (cfg *apiConfig) userLoginHandler(
@@ -139,6 +139,26 @@ func (cfg *apiConfig) userLoginHandler(
 		return
 	}
 
+	// setting up token expire time
+	var tokenExpiresIn time.Duration
+	if req.ExpiresInSeconds == nil ||
+		*req.ExpiresInSeconds <= 0 {
+		tokenExpiresIn = time.Duration(time.Hour)
+	}
+
+	if req.ExpiresInSeconds != nil &&
+		time.Duration(*req.ExpiresInSeconds)*time.Second > time.Hour {
+		tokenExpiresIn = time.Hour
+	}
+
+	// create a JWT token
+	token, err := auth.MakeJWT(user.ID, cfg.jwtSecret, tokenExpiresIn)
+	if err != nil {
+		log.Panicf("Unable to create token %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "Unable to creat token")
+		return
+	}
+
 	// response, err := json.Marshal(User{
 	// 	ID:        user.ID,
 	// 	CreatedAt: user.CreatedAt,
@@ -153,11 +173,12 @@ func (cfg *apiConfig) userLoginHandler(
 	// w.WriteHeader(http.StatusOK)
 	// w.Write([]byte(response))
 
-	JSONResponse(w, http.StatusOK, User {
+	JSONResponse(w, http.StatusOK, User{
 		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
+		Token:     token, // jwt token
 	})
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+	"github.com/wnvd/chirpy/internal/auth"
 	"github.com/wnvd/chirpy/internal/database"
 )
 
@@ -23,8 +24,7 @@ type Chirp struct {
 // path: POST /api/chirp
 func (cfg *apiConfig) createChirpHandler(w http.ResponseWriter, r *http.Request) {
 	type reqObject struct {
-		Body   string `json:"body"`
-		UserID string `json:"user_id"`
+		Body string `json:"body"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -36,15 +36,24 @@ func (cfg *apiConfig) createChirpHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if len(req.Body) > maxMsgLength {
-		ErrorResponse(w, http.StatusBadRequest, "Chirp too long")
+	// Get the jwt token from the header
+	jwtToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Printf("Unable to get bearer token: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "Bad Request")
 		return
 	}
 
-	userUUID, err := uuid.Parse(req.UserID)
+	// validating the jwt token the getting the user UUID
+	userUUID, err := auth.ValidateJWT(jwtToken, cfg.jwtSecret)
 	if err != nil {
-		log.Printf("Failed to parse uuid %v", err)
-		ErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")
+		log.Printf("Unable to validate token: %v", err)
+		ErrorResponse(w, http.StatusBadRequest, "Bad Request")
+		return
+	}
+
+	if len(req.Body) > maxMsgLength {
+		ErrorResponse(w, http.StatusBadRequest, "chirp bodylength exceed limit")
 		return
 	}
 
