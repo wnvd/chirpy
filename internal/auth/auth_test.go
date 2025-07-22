@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -69,4 +70,16 @@ func TestBearerToken(t *testing.T) {
 		t.Errorf("Couldn't get bearer token")
 	}
 
+}
+
+func TestRefeshToken(t *testing.T) {
+	refresh_token, err := MakeRefreshToken()
+	if err != nil {
+		t.Errorf("Couldn't create refresh token %v", err)
+		return
+	}
+
+	if len(refresh_token) == 0 {
+		t.Errorf("refresh_token is empty %v", err)
+	}
 }

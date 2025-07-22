@@ -34,8 +34,11 @@ func (cfg *apiConfig) resetMetricHandler(
 	}
 
 	cfg.resetMetrics()
-	// delete all users from the database
+	// Clean up database
 	cfg.database.DeleteAllUsers(r.Context())
+	cfg.database.DeleteAllChirps(r.Context())
+	cfg.database.DeleteAllRefreshTokens(r.Context())
+
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8;")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Metrics have been reset!"))

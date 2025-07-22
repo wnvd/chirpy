@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -18,13 +19,11 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
-	Token     string    `json:"token,omitempty"`
 }
 
 type UserLogin struct {
-	Email            string `json:"email"`
-	Password         string `json:"password"`
-	ExpiresInSeconds *int   `json:"expires_in_seconds,omitempty"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 func (cfg *apiConfig) createUserHandler(
@@ -100,6 +99,12 @@ func (cfg *apiConfig) userLoginHandler(
 	w http.ResponseWriter,
 	r *http.Request) {
 
+	type loginResponse struct {
+		User
+		Token        string `json:"token,omitempty"`
+		RefreshToken string `json:"refresh_token,omitempty"`
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	req := &UserLogin{}
 	if err := decoder.Decode(req); err != nil {
@@ -140,25 +145,36 @@ func (cfg *apiConfig) userLoginHandler(
 	}
 
 	// setting up token expire time
-	var tokenExpiresIn time.Duration
-	if req.ExpiresInSeconds == nil ||
-		*req.ExpiresInSeconds <= 0 {
-		tokenExpiresIn = time.Duration(time.Hour)
-	}
-
-	if req.ExpiresInSeconds != nil &&
-		time.Duration(*req.ExpiresInSeconds)*time.Second > time.Hour {
-		tokenExpiresIn = time.Hour
-	}
-
-	// create a JWT token
-	token, err := auth.MakeJWT(user.ID, cfg.jwtSecret, tokenExpiresIn)
+	tokenExpiresIn := time.Duration(time.Hour)
+	// create a JWT/Access token
+	jwtToken, err := auth.MakeJWT(user.ID, cfg.jwtSecret, tokenExpiresIn)
 	if err != nil {
 		log.Panicf("Unable to create token %v", err)
-		ErrorResponse(w, http.StatusInternalServerError, "Unable to creat token")
+		ErrorResponse(w, http.StatusInternalServerError, "Unable to create token")
 		return
 	}
 
+	// setting up refresh token
+	genRefreshToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		log.Panicf("Unable to create refresh token %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+
+	// adding refresh token in database
+	createdRefreshToken, err := cfg.database.CreateRefreshToken(r.Context(),
+		database.CreateRefreshTokenParams{
+			Token:     genRefreshToken,
+			UserID:    user.ID,
+			ExpiresAt: time.Now().Add(60 * 24 * time.Hour),
+			RevokedAt: sql.NullTime{Valid: false, Time: time.Time{}},
+		})
+	if err != nil {
+		log.Panicf("Unable to set refresh token %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
 	// response, err := json.Marshal(User{
 	// 	ID:        user.ID,
 	// 	CreatedAt: user.CreatedAt,
@@ -173,12 +189,15 @@ func (cfg *apiConfig) userLoginHandler(
 	// w.WriteHeader(http.StatusOK)
 	// w.Write([]byte(response))
 
-	JSONResponse(w, http.StatusOK, User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-		Token:     token, // jwt token
+	JSONResponse(w, http.StatusOK, loginResponse{
+		User: User{
+			ID:        user.ID,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			Email:     user.Email,
+		},
+		Token:        jwtToken,
+		RefreshToken: createdRefreshToken.Token,
 	})
 }
 
