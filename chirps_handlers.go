@@ -48,12 +48,12 @@ func (cfg *apiConfig) createChirpHandler(w http.ResponseWriter, r *http.Request)
 	userUUID, err := auth.ValidateJWT(jwtToken, cfg.jwtSecret)
 	if err != nil {
 		log.Printf("Unable to validate token: %v", err)
-		ErrorResponse(w, http.StatusBadRequest, "Bad Request")
+		ErrorResponse(w, http.StatusUnauthorized, "Unauthorized Request")
 		return
 	}
 
 	if len(req.Body) > maxMsgLength {
-		ErrorResponse(w, http.StatusBadRequest, "chirp bodylength exceed limit")
+		ErrorResponse(w, http.StatusBadRequest, "chirp body length exceed limit")
 		return
 	}
 
