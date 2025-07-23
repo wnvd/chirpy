@@ -201,6 +201,75 @@ func (cfg *apiConfig) userLoginHandler(
 	})
 }
 
+// path: PUT /api/users
+func (cfg *apiConfig) updateUserHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+
+	accessToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Printf("Unable to get bearer token: %v", err)
+		ErrorResponse(w, http.StatusUnauthorized, "Unauthorized Request")
+		return
+	}
+
+	// validating the jwt token the getting the user UUID
+	userUUID, err := auth.ValidateJWT(accessToken, cfg.jwtSecret)
+	if err != nil {
+		log.Printf("Unable to validate token: %v", err)
+		ErrorResponse(w, http.StatusUnauthorized, "Unauthorized Request")
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	req := &UserLogin{}
+	if err := decoder.Decode(req); err != nil {
+		log.Printf("Failed to decode request body")
+		ErrorResponse(w, http.StatusInternalServerError, "Something went wrong")
+		return
+	}
+
+	if !strings.Contains(req.Email, "@") {
+		log.Printf("Invalid Email")
+		ErrorResponse(w, http.StatusBadRequest, "Incorrect email or password")
+		return
+	}
+
+	if len(req.Password) < 4 {
+		log.Printf("Invalid Password")
+		ErrorResponse(w, http.StatusBadRequest, "Incorrect email or password")
+		return
+	}
+
+	hasedPassword, err := auth.HashPassword(req.Password)
+	if err != nil {
+		log.Printf("Failed to hash password %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+
+	updatedUser, err := cfg.database.UpdateUserById(
+		r.Context(),
+		database.UpdateUserByIdParams{
+			ID:             userUUID,
+			Email:          req.Email,
+			HashedPassword: hasedPassword,
+		},
+	)
+	if err != nil {
+		ErrorResponse(w, http.StatusUnauthorized, "Incorrect email or password")
+		return
+	}
+
+	JSONResponse(w, http.StatusOK, User {
+		ID: updatedUser.ID,
+		Email: updatedUser.Email,
+		CreatedAt: updatedUser.CreatedAt,
+		UpdatedAt: updatedUser.UpdatedAt,
+	})
+}
+
 // helper function to replace profanity
 func replaceProfane(body string) string {
 	wordFilter := map[string]bool{
