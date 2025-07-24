@@ -77,6 +77,9 @@ func main() {
 	// get a chirp by Id
 	mux.HandleFunc("GET /api/chirps/{chirpId}", cfg.getChirpsByIdHandler)
 
+	// Delete a chipr by Id
+	mux.HandleFunc("DELETE /api/chirps/{chirpId}", cfg.deleteChirpsByIdHandler)
+
 	// create user
 	mux.HandleFunc("POST /api/users", cfg.createUserHandler)
 

@@ -211,3 +211,77 @@ func (cfg *apiConfig) getChirpsByIdHandler(
 		UserId:    chirp.UserID,
 	})
 }
+
+/*
+* Deletes chirp by Id
+*
+* path : DELETE /api/chirps/{id}
+*
+ */
+
+func (cfg *apiConfig) deleteChirpsByIdHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Printf("Unable to get bearer token: %v", err)
+		ErrorResponse(w, http.StatusUnauthorized, "Internal Server Error")
+		return
+	}
+
+	// getting user uuid
+	userUUID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		log.Printf("Unable to validate jwt token: %v", err)
+		ErrorResponse(w, http.StatusUnauthorized, "Unauthorized request")
+		return
+	}
+
+	// getting chirp id provided in client url
+	chirpId, err := uuid.Parse(r.PathValue("chirpId"))
+	if err != nil {
+		log.Printf("Unable to parse uuid: %v", err)
+		ErrorResponse(w, http.StatusUnauthorized, "Internal Server Error")
+		return
+	}
+
+	/*
+	 * we have to do a lot of checking and send different error codes back,
+	 * first check if the user, chirp exist and then delete the chirp with
+	 * related to that user.
+	 *
+	 */
+	user, err := cfg.database.GetUserById(r.Context(), userUUID)
+	if err != nil {
+		log.Printf("Unable to get user details from the database : %v", err)
+		ErrorResponse(w, http.StatusNotFound, "Not Found")
+		return
+	}
+
+	chirp, err := cfg.database.GetChirpById(r.Context(), chirpId)
+	if err != nil {
+		log.Printf("Unable to get chirp details from the database : %v", err)
+		ErrorResponse(w, http.StatusNotFound, "Not Found")
+		return
+	}
+
+	// checking if user ID provided != chirp author ID
+	if user.ID != chirp.UserID {
+		log.Printf("chirp author id and user id are equal: %v", err)
+		ErrorResponse(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+
+	if err := cfg.database.DeleteChirpById(r.Context(), database.DeleteChirpByIdParams{
+		ID:     chirp.ID,
+		UserID: chirp.UserID,
+	}); err != nil {
+		log.Printf("Unable to get chirp details from the database : %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "Interval Server Error")
+		return
+	}
+
+	JSONResponse(w, http.StatusNoContent, nil)
+}
