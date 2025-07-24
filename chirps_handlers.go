@@ -253,12 +253,6 @@ func (cfg *apiConfig) deleteChirpsByIdHandler(
 	 * related to that user.
 	 *
 	 */
-	user, err := cfg.database.GetUserById(r.Context(), userUUID)
-	if err != nil {
-		log.Printf("Unable to get user details from the database : %v", err)
-		ErrorResponse(w, http.StatusNotFound, "Not Found")
-		return
-	}
 
 	chirp, err := cfg.database.GetChirpById(r.Context(), chirpId)
 	if err != nil {
@@ -268,7 +262,7 @@ func (cfg *apiConfig) deleteChirpsByIdHandler(
 	}
 
 	// checking if user ID provided != chirp author ID
-	if user.ID != chirp.UserID {
+	if userUUID != chirp.UserID {
 		log.Printf("chirp author id and user id are equal")
 		ErrorResponse(w, http.StatusForbidden, "Forbidden")
 		return
