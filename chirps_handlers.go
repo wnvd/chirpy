@@ -269,7 +269,7 @@ func (cfg *apiConfig) deleteChirpsByIdHandler(
 
 	// checking if user ID provided != chirp author ID
 	if user.ID != chirp.UserID {
-		log.Printf("chirp author id and user id are equal: %v", err)
+		log.Printf("chirp author id and user id are equal")
 		ErrorResponse(w, http.StatusForbidden, "Forbidden")
 		return
 	}
