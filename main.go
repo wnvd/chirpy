@@ -95,6 +95,9 @@ func main() {
 	// update user email and password
 	mux.HandleFunc("PUT /api/users", cfg.updateUserHandler)
 
+	// upgrade user to Chirp Red
+	mux.HandleFunc("POST /api/polka/webhooks", cfg.upgradeToRedHandler)
+
 	server := &http.Server{
 		Handler: mux,
 		Addr:    ":8080",

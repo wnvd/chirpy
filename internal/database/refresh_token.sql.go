@@ -69,7 +69,7 @@ func (q *Queries) DeleteAllRefreshTokens(ctx context.Context) error {
 }
 
 const getUserFromRefreshToken = `-- name: GetUserFromRefreshToken :one
-SELECT id, created_at, updated_at, email, hashed_password
+SELECT id, created_at, updated_at, email, is_chirpy_red, hashed_password
 FROM users
 WHERE id = (
     SELECT user_id
@@ -87,6 +87,7 @@ func (q *Queries) GetUserFromRefreshToken(ctx context.Context, token string) (Us
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Email,
+		&i.IsChirpyRed,
 		&i.HashedPassword,
 	)
 	return i, err

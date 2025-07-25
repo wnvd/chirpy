@@ -19,6 +19,7 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	IsChirpyRed bool	`json:"is_chirpy_red"`
 }
 
 type UserLogin struct {
@@ -92,6 +93,7 @@ func (cfg *apiConfig) createUserHandler(
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
+		IsChirpyRed: user.IsChirpyRed,
 	})
 }
 
@@ -195,6 +197,7 @@ func (cfg *apiConfig) userLoginHandler(
 			CreatedAt: user.CreatedAt,
 			UpdatedAt: user.UpdatedAt,
 			Email:     user.Email,
+			IsChirpyRed: user.IsChirpyRed,
 		},
 		Token:        jwtToken,
 		RefreshToken: createdRefreshToken.Token,
@@ -262,12 +265,57 @@ func (cfg *apiConfig) updateUserHandler(
 		return
 	}
 
-	JSONResponse(w, http.StatusOK, User {
-		ID: updatedUser.ID,
-		Email: updatedUser.Email,
+	JSONResponse(w, http.StatusOK, User{
+		ID:        updatedUser.ID,
+		Email:     updatedUser.Email,
 		CreatedAt: updatedUser.CreatedAt,
 		UpdatedAt: updatedUser.UpdatedAt,
+		IsChirpyRed: updatedUser.IsChirpyRed,
 	})
+}
+
+// PATH: POST /api/polka/webhooks
+func (cfg *apiConfig) upgradeToRedHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	type Request struct {
+		Event string `json:"event"`
+		Data  struct {
+			UserId string `json:"user_id"`
+		} `json:"data"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+
+	request := &Request{}
+	if err := decoder.Decode(request); err != nil {
+		log.Printf("Failed to decode request body")
+		ErrorResponse(w, http.StatusInternalServerError, "Something went wrong")
+		return
+	}
+
+	if request.Event != "user.upgraded" {
+		log.Printf("request.Event is not equal 'user.upgraded'")
+		ErrorResponse(w, http.StatusNoContent, "")
+		return
+	}
+
+	userUUID, err := uuid.Parse(request.Data.UserId)
+	if err != nil {
+		log.Printf("unable to parse uuid")
+		ErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+
+	_, err = cfg.database.UpgradeUserToRed(r.Context(), userUUID)
+	if err != nil {
+		log.Printf("unable to parse uuid %v", err)
+		ErrorResponse(w, http.StatusNotFound, "Internal Server Error")
+		return
+	}
+
+	JSONResponse(w, http.StatusNoContent, nil)
 }
 
 // helper function to replace profanity
