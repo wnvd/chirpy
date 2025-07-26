@@ -210,7 +210,7 @@ func (cfg *apiConfig) updateUserHandler(
 	r *http.Request,
 ) {
 
-	accessToken, err := auth.GetBearerToken(r.Header)
+	accessToken, err := auth.GetAuthToken(r.Header)
 	if err != nil {
 		log.Printf("Unable to get bearer token: %v", err)
 		ErrorResponse(w, http.StatusUnauthorized, "Unauthorized Request")
@@ -284,6 +284,19 @@ func (cfg *apiConfig) upgradeToRedHandler(
 		Data  struct {
 			UserId string `json:"user_id"`
 		} `json:"data"`
+	}
+
+	polkaKey, err := auth.GetAuthToken(r.Header)
+	if err != nil {
+		log.Printf("polka api key not found: %v", err)
+		ErrorResponse(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	if polkaKey != cfg.polkaKey {
+		log.Printf("polka api key does not match: %v", err)
+		ErrorResponse(w, http.StatusUnauthorized, "Unauthorized")
+		return
 	}
 
 	decoder := json.NewDecoder(r.Body)

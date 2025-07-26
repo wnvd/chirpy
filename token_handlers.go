@@ -15,7 +15,7 @@ func (cfg *apiConfig) refreshTokenHandler(
 	r *http.Request,
 ) {
 
-	oldToken, err := auth.GetBearerToken(r.Header)
+	oldToken, err := auth.GetAuthToken(r.Header)
 	if err != nil {
 		log.Printf("Unable to get bearer token: %v", err)
 		ErrorResponse(w, http.StatusInternalServerError, "Bad Request")
@@ -56,7 +56,7 @@ func (cfg *apiConfig) revokeTokenHandler(
 	r *http.Request,
 ) {
 
-	refreshToken, err := auth.GetBearerToken(r.Header)
+	refreshToken, err := auth.GetAuthToken(r.Header)
 	if err != nil {
 		log.Printf("Unable to get bearer token: %v", err)
 		ErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")

@@ -37,7 +37,7 @@ func (cfg *apiConfig) createChirpHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Get the jwt token from the header
-	jwtToken, err := auth.GetBearerToken(r.Header)
+	jwtToken, err := auth.GetAuthToken(r.Header)
 	if err != nil {
 		log.Printf("Unable to get bearer token: %v", err)
 		ErrorResponse(w, http.StatusInternalServerError, "Bad Request")
@@ -224,7 +224,7 @@ func (cfg *apiConfig) deleteChirpsByIdHandler(
 	r *http.Request,
 ) {
 
-	token, err := auth.GetBearerToken(r.Header)
+	token, err := auth.GetAuthToken(r.Header)
 	if err != nil {
 		log.Printf("Unable to get bearer token: %v", err)
 		ErrorResponse(w, http.StatusUnauthorized, "Internal Server Error")
