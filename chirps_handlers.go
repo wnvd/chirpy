@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -128,7 +129,14 @@ func (c *apiConfig) getChirpsHandler(
 			return
 		}
 	}
-	
+
+	// sorting chirps, by default they are ascending
+	sortAsc := true
+	sortParam := r.URL.Query().Get("sort")
+	if len(sortParam) != 0 && sortParam == "desc" {
+		sortAsc = false
+	}
+
 	chirps, err := c.database.GetAllChirps(r.Context())
 	if err != nil {
 		log.Printf("Failed to all the chirps from the database")
@@ -153,6 +161,12 @@ func (c *apiConfig) getChirpsHandler(
 			UpdatedAt: chirp.UpdatedAt,
 			Body:      chirp.Body,
 			UserId:    chirp.UserID,
+		})
+	}
+
+	if sortAsc == false {
+		sort.Slice(respChirp, func(i, j int) bool {
+			return respChirp[i].CreatedAt.After(respChirp[j].CreatedAt)
 		})
 	}
 
