@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -118,7 +117,18 @@ func (c *apiConfig) getChirpsHandler(
 	r *http.Request,
 ) {
 
-	fmt.Println("actually here")
+	// get query params
+	authorId := uuid.Nil
+	authorIdParam := r.URL.Query().Get("author_id")
+	if authorIdParam != "" {
+		var err error
+		authorId, err = uuid.Parse(authorIdParam)
+		if err != nil {
+			ErrorResponse(w, http.StatusBadRequest, "Invalid Author ID")
+			return
+		}
+	}
+	
 	chirps, err := c.database.GetAllChirps(r.Context())
 	if err != nil {
 		log.Printf("Failed to all the chirps from the database")
@@ -132,31 +142,20 @@ func (c *apiConfig) getChirpsHandler(
 		return
 	}
 
-	respChirp := make([]Chirp, len(chirps))
-
-	for i, chirp := range chirps {
-		respChirp[i] = Chirp{
+	var respChirp []Chirp
+	for _, chirp := range chirps {
+		if authorId != uuid.Nil && authorId != chirp.UserID {
+			continue
+		}
+		respChirp = append(respChirp, Chirp{
 			Id:        chirp.ID,
 			CreatedAt: chirp.CreatedAt,
 			UpdatedAt: chirp.UpdatedAt,
 			Body:      chirp.Body,
 			UserId:    chirp.UserID,
-		}
+		})
 	}
 
-	data, err := json.Marshal(respChirp)
-	if err != nil {
-		log.Printf("Failed to all the chirps from the database")
-		ErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")
-		return
-	}
-
-	// w.Header().Set("Content-Type", "application/json")
-	// w.WriteHeader(http.StatusOK)
-	// w.Write(data)
-
-	fmt.Println(respChirp)
-	fmt.Println(string(data))
 	JSONResponse(w, http.StatusOK, respChirp)
 }
 
